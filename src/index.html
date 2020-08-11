@@ -10,7 +10,14 @@
     <style type="text/css">
     </style>
     <link rel='stylesheet' href='index.css' type='text/css' media='all'>
+    <script type='text/javascript' src='HLSVideoReader.js'></script>
 </head>
-<body>
+<body ondragstart="return false" ondrop="return false" onload="start()">
 </body>
+<script type="text/javascript">
+    function start() {
+        var reader = new HLSVideoReader;
+        console.log(reader.start());
+    }
+</script>
 </html>
