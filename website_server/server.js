@@ -20,7 +20,8 @@ var onRequest = function onRequest(request, response) {
             response.writeHead(404, {'Content-Type': 'text/html'});
             response.end(fs.readFileSync(conf.http.html5_header)
                 + '\n<body>'
-                + '<img src="data:image/jpeg;base64, ' + fs.readFileSync('Fy.jpg').toString('base64') + '" />'
+                + '<center>Error 404</center>'
+                + '<center><img src="data:image/jpeg;base64, ' + fs.readFileSync('Fy.jpg').toString('base64') + '" /></center>'
                 + '\n</body>'
                 + '\n</html>');
 
