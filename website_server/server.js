@@ -18,7 +18,12 @@ var onRequest = function onRequest(request, response) {
         if (err) {
             console.log('error: file not exist:' + conf.http.www + pathname);
             response.writeHead(404, {'Content-Type': 'text/html'});
-            response.end(fs.readFileSync(conf.http.error['404']));
+            response.end(fs.readFileSync(conf.http.html5_header)
+                + '\n<body>'
+                + '<img src="data:image/jpeg;base64, ' + fs.readFileSync('Fy.jpg').toString('base64') + '" />'
+                + '\n</body>'
+                + '\n</html>');
+
         } else if (stats.isDirectory()) {
             fs.lstat(conf.http.www + pathname + conf.http.index, function(err, stats) {
                 if (err) {

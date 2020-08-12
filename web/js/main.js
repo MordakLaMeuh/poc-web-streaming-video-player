@@ -27,7 +27,10 @@ function start() {
     var reader = new HLSVideoReader();
     console.log(reader.init(document.getElementsByTagName("video")[0]));
 
-    Promise.all([getTxtAsync(baseUrl + 'ts/farador/playlist.m3u8'), getTxtAsync(baseUrl + 'ts/melanchon/playlist.m3u8')]).then(values => {
+    var promesses = new Array;
+    promesses.push(getTxtAsync(baseUrl + 'ts/farador/playlist.m3u8f'));
+    promesses.push(getTxtAsync(baseUrl + 'ts/melanchon/playlist.m3u8'));
+    Promise.all(promesses).then(values => {
         console.log(values.length)
         values.forEach(function(elem) {
             console.log(elem);
