@@ -1,6 +1,9 @@
 server {
     listen ${NGINX_PORT};
     location / {
+        if ($request_method = 'GET') {
+            add_header 'Access-Control-Allow-Origin' '*';
+        }
         root   /usr/share/nginx/html;
         autoindex on;
     }
