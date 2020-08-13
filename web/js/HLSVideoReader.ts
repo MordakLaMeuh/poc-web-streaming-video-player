@@ -2,9 +2,8 @@ import { Parser } from './m3u8-parser.es.js';
 
 export default class HLSVideoReader {
     constructor() {}
-    init(video :HTMLVideoElement): string {
+    attachVideo(video :HTMLVideoElement): string {
         console.log(video);
-        video.src = "http://localhost/farador.mp4";
         var output: string = "HLSVideoReader started";
         return output;
     }
