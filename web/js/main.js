@@ -41,13 +41,12 @@ function getBinaryAsync(url) {
     });
 }
 
-// Attempts to call a given function 'fn' with smaller and smaller data slice. (1, 1/2, 1/4, 1/8...)
+// Attempts to call sourceBuffer.appendBuffer() with smaller and smaller data slice. (1, 1/2, 1/4, 1/8...)
 function loadVideo(sourceBuffer, arrayBuffer) {
     return new Promise(function (resolve, reject) {
         console.info("data length: " + arrayBuffer.byteLength);
         try {
             let data = new Uint8Array(arrayBuffer);
-            let divisor = 1;
             let start_offset = 0;
             let chunk_size = data.length;
 
@@ -57,12 +56,14 @@ function loadVideo(sourceBuffer, arrayBuffer) {
             }
 
             let onupdate = function() {
+                console.info("loading data...");
                 start_offset += chunk_size;
                 if (start_offset < data.length) {
                     try {
                         append_chunk();
                     } catch (e) {
-                        throw (e);
+                        removeAllEventListeners();
+                        reject("append_chunk: " + e);
                     }
                 } else {
                     // Consider here that the loading was succesfull
@@ -72,11 +73,13 @@ function loadVideo(sourceBuffer, arrayBuffer) {
             }
             let onerror = function() {
                 console.error(e);
-                throw("error evt: " + e);
+                removeAllEventListeners();
+                reject("error evt: " + e);
             }
             let onabort = function() {
                 console.error(a);
-                throw("abort evt: " + a);
+                removeAllEventListeners();
+                reject("abort evt: " + a);
             }
             let removeAllEventListeners = function() {
                 sourceBuffer.removeEventListener('updateend', onupdate);
@@ -88,14 +91,14 @@ function loadVideo(sourceBuffer, arrayBuffer) {
             sourceBuffer.addEventListener('error', onerror);
             sourceBuffer.addEventListener('abort', onabort);
 
+            // Recurse call until TRY pattern works
             (function appendFragments() {
                 try {
                     // WARN: We consider that when the first append is succesfull, the others will be same
                     append_chunk();
                 } catch (e) {
-                    divisor *= 2;
-                    chunk_size = Math.floor(data.length / divisor);
-                    if (Math.floor(data.length / divisor) == 0) {
+                    chunk_size = Math.floor(chunk_size / 2);
+                    if (chunk_size == 0) {
                         // In this critical case, even one byte per one byte causes an error
                         throw("Too many reduction: " + e);
                     } else {
@@ -139,7 +142,7 @@ function start() {
         var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
         //sourceBuffer.appendWindowEnd = 4.0;
 
-        getBinaryAsync('http://localhost/farador_dashinit.mp4').then(arrayBuffer => {
+        getBinaryAsync('http://localhost/melanchon_fragmented.mp4').then(arrayBuffer => {
             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
                 mediaSource.endOfStream();
             },
