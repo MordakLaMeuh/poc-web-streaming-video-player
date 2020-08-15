@@ -1,6 +1,6 @@
 import HLSVideoReader from './HLSVideoReader.js';
 
-const baseUrl = 'http://localhost/';
+const baseUrl = window.location.hostname + '/';
 const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2""';
 
 function getTxtAsync(url) {
@@ -115,10 +115,12 @@ function loadVideo(sourceBuffer, arrayBuffer) {
 }
 
 function start() {
+    console.log(baseUrl);
+    console.log(window.location.host);
     var reader = new HLSVideoReader();
     var promesses = new Array;
-    promesses.push(getTxtAsync(baseUrl + 'ts/farador/playlist.m3u8'));
-    promesses.push(getTxtAsync(baseUrl + 'ts/melanchon/playlist.m3u8'));
+    promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/farador/playlist.m3u8'));
+    promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/melanchon/playlist.m3u8'));
     Promise.all(promesses).then(values => {
         console.log(values.length)
         values.forEach(function(elem) {
@@ -146,18 +148,18 @@ function start() {
         // mediaSource.duration = 3.5; // (51200 + 25600) / 12800
         // sourceBuffer.mode = 'segments';
 
-        getBinaryAsync('http://localhost/farador/segment_init.mp4').then(arrayBuffer => {
+        getBinaryAsync('http://' + baseUrl + 'farador/segment_init.mp4').then(arrayBuffer => {
             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                getBinaryAsync('http://localhost/farador/segment_000002.m4s').then(arrayBuffer => {
+                getBinaryAsync('http://' + baseUrl + 'farador/segment_000002.m4s').then(arrayBuffer => {
                     sourceBuffer.timestampOffset = -2.002;
                     loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                        getBinaryAsync('http://localhost/kiwi/segment_000005.m4s').then(arrayBuffer => {
+                        getBinaryAsync('http://' + baseUrl + 'kiwi/segment_000005.m4s').then(arrayBuffer => {
                             sourceBuffer.timestampOffset = -6.006;
                             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                                getBinaryAsync('http://localhost/melanchon/segment_000005.m4s').then(arrayBuffer => {
+                                getBinaryAsync('http://' + baseUrl + 'melanchon/segment_000005.m4s').then(arrayBuffer => {
                                     sourceBuffer.timestampOffset = -4.004;
                                     loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                                        getBinaryAsync('http://localhost/tv/segment_000001.m4s').then(arrayBuffer => {
+                                        getBinaryAsync('http://' + baseUrl + 'tv/segment_000001.m4s').then(arrayBuffer => {
                                             sourceBuffer.timestampOffset = +6.006;
                                             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
                                                 mediaSource.endOfStream();
