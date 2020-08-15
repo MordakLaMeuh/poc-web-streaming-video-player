@@ -114,7 +114,38 @@ function loadVideo(sourceBuffer, arrayBuffer) {
     });
 }
 
+// Some bullshit
+let idName = 'msg';
+var alternateStatusTXT = (function() {
+    var elmt;
+    var interval;
+    var state = false;
+    return function(idName) {
+        if (elmt) {
+            if (elmt.id == idName) {
+                clearInterval(interval);
+                elmt = null;
+                return;
+            }
+        } else {
+            elmt = document.getElementById(idName);
+            interval = setInterval(function() {
+                if (state) {
+                    state = false;
+                    elmt.style.opacity = 0;
+                } else {
+                    state = true;
+                    elmt.style.opacity = 1;
+                }
+            }, 500);
+        }
+    };
+})();
+
 function start() {
+    // Some bullshit
+    alternateStatusTXT(idName);
+
     console.log(baseUrl);
     console.log(window.location.host);
     var reader = new HLSVideoReader();
@@ -140,57 +171,100 @@ function start() {
     mediaSource.addEventListener('sourceopen', sourceOpen);
     function sourceOpen (_) {
         var mediaSource = this;
-        mediaSource.duration = 2;
         console.log(mediaSource.readyState);
         var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
 
-        //sourceBuffer.appendWindowEnd = 4.0;
+        // sourceBuffer.appendWindowEnd = 4.0;
         // mediaSource.duration = 3.5; // (51200 + 25600) / 12800
         // sourceBuffer.mode = 'segments';
 
+        const ELMT_DURATION = 2;
+
+        class Elmt {
+            constructor(video, index) {
+                this.video = video;
+                this.index = index;
+            }
+            get name() {
+                return this.video + '/segment_' + this._pad(this.index, 6) + '.m4s';
+            }
+            _pad(number, length) {
+                var str = '' + number;
+                while (str.length < length) {
+                    str = '0' + str;
+                }
+                return str;
+            }
+        }
+
+        let list = new Array();
+        list.push(new Elmt('farador', 68));
+        list.push(new Elmt('farador', 69));
+        list.push(new Elmt('farador', 70));
+        list.push(new Elmt('farador', 71));
+        list.push(new Elmt('melanchon', 5));
+        list.push(new Elmt('tv', 1));
+        list.push(new Elmt('melanchon', 6));
+        list.push(new Elmt('farador', 311));
+        list.push(new Elmt('farador', 312));
+        list.push(new Elmt('kiwi', 1));
+        list.push(new Elmt('kiwi', 2));
+        list.push(new Elmt('kiwi', 3));
+        list.push(new Elmt('kiwi', 4));
+        list.push(new Elmt('kiwi', 5));
+        list.push(new Elmt('kiwi', 6));
+        list.push(new Elmt('kiwi', 7));
+        list.push(new Elmt('kiwi', 8));
+        list.push(new Elmt('kiwi', 9));
+        list.push(new Elmt('kiwi', 10));
+        list.push(new Elmt('kiwi', 11));
+        list.push(new Elmt('kiwi', 12));
+        list.push(new Elmt('kiwi', 13));
+        list.push(new Elmt('kiwi', 14));
+        list.push(new Elmt('kiwi', 15));
+        list.push(new Elmt('farador', 332));
+        list.push(new Elmt('farador', 333));
+        list.push(new Elmt('farador', 334));
+        list.push(new Elmt('farador', 335));
+        list.push(new Elmt('farador', 336));
+        list.push(new Elmt('farador', 337));
+        list.push(new Elmt('tv', 1));
+
+        list.reverse();
+        console.log(list);
+        mediaSource.duration = list.length * ELMT_DURATION;
+
+        let elmt_counter = 0;
+
+        let make_promise = function() {
+            let elmt = list.pop();
+            sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
+            getBinaryAsync('http://' + baseUrl + elmt.name).then(arrayBuffer => {
+                loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                    if (list.length == 0) {
+                        console.info("endOfStream");
+                        // Some bullshit
+                        alternateStatusTXT(idName);
+                        document.getElementById(idName).style.display = 'none';
+                        document.getElementsByTagName('video')[0].style.display = 'block';
+
+                        mediaSource.endOfStream();
+                    } else {
+                        elmt_counter += 1;
+                        make_promise();
+                    }
+                },
+                reason => {
+                    console.error(reason);
+                });
+            }, reason => {
+                console.log(reason)
+            })
+        }
+
         getBinaryAsync('http://' + baseUrl + 'farador/segment_init.mp4').then(arrayBuffer => {
             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                getBinaryAsync('http://' + baseUrl + 'farador/segment_000002.m4s').then(arrayBuffer => {
-                    sourceBuffer.timestampOffset = -2.002;
-                    loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                        getBinaryAsync('http://' + baseUrl + 'kiwi/segment_000005.m4s').then(arrayBuffer => {
-                            sourceBuffer.timestampOffset = -6.006;
-                            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                                getBinaryAsync('http://' + baseUrl + 'melanchon/segment_000005.m4s').then(arrayBuffer => {
-                                    sourceBuffer.timestampOffset = -4.004;
-                                    loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                                        getBinaryAsync('http://' + baseUrl + 'tv/segment_000001.m4s').then(arrayBuffer => {
-                                            sourceBuffer.timestampOffset = +6.006;
-                                            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                                                mediaSource.endOfStream();
-                                            },
-                                            reason => {
-                                                console.error(reason);
-                                            });
-                                        }, reason => {
-                                            console.log(reason)
-                                        })
-                                    },
-                                    reason => {
-                                        console.error(reason);
-                                    });
-                                }, reason => {
-                                    console.log(reason)
-                                })
-                            },
-                            reason => {
-                                console.error(reason);
-                            });
-                        }, reason => {
-                            console.log(reason)
-                        })
-                    },
-                    reason => {
-                        console.error(reason);
-                    });
-                }, reason => {
-                    console.log(reason)
-                })
+                make_promise();
             },
             reason => {
                 console.error(reason);

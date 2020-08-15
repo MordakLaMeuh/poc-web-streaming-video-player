@@ -22,5 +22,9 @@ a {
     display:block;
 }
 video {
-    background-color: #555555;
+    display: none;
+    background-color: #000000;
+}
+#msg {
+    opacity: 1;
 }
