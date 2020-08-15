@@ -1,4 +1,4 @@
-import HLSVideoReader from './build/HLSVideoReader.js';
+import HLSVideoReader from './HLSVideoReader.js';
 
 const baseUrl = 'http://localhost/';
 const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2""';
@@ -53,10 +53,10 @@ function loadVideo(sourceBuffer, arrayBuffer) {
             let append_chunk = function() {
                 let chunk = data.subarray(start_offset, ((start_offset + chunk_size) > data.length) ? data.length : start_offset + chunk_size);
                 sourceBuffer.appendBuffer(chunk);
+                console.info("appending " + chunk.length + " bytes");
             }
 
             let onupdate = function() {
-                console.info("loading data...");
                 start_offset += chunk_size;
                 if (start_offset < data.length) {
                     try {
@@ -71,12 +71,12 @@ function loadVideo(sourceBuffer, arrayBuffer) {
                     resolve();
                 }
             }
-            let onerror = function() {
+            let onerror = function(e) {
                 console.error(e);
                 removeAllEventListeners();
                 reject("error evt: " + e);
             }
-            let onabort = function() {
+            let onabort = function(a) {
                 console.error(a);
                 removeAllEventListeners();
                 reject("abort evt: " + a);
@@ -138,20 +138,64 @@ function start() {
     mediaSource.addEventListener('sourceopen', sourceOpen);
     function sourceOpen (_) {
         var mediaSource = this;
+        mediaSource.duration = 2;
         console.log(mediaSource.readyState);
         var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-        //sourceBuffer.appendWindowEnd = 4.0;
 
-        getBinaryAsync('http://localhost/melanchon_fragmented.mp4').then(arrayBuffer => {
+        //sourceBuffer.appendWindowEnd = 4.0;
+        // mediaSource.duration = 3.5; // (51200 + 25600) / 12800
+        // sourceBuffer.mode = 'segments';
+
+        getBinaryAsync('http://localhost/farador/segment_init.mp4').then(arrayBuffer => {
             loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                mediaSource.endOfStream();
+                getBinaryAsync('http://localhost/farador/segment_000002.m4s').then(arrayBuffer => {
+                    sourceBuffer.timestampOffset = -2.002;
+                    loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                        getBinaryAsync('http://localhost/kiwi/segment_000005.m4s').then(arrayBuffer => {
+                            sourceBuffer.timestampOffset = -6.006;
+                            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                                getBinaryAsync('http://localhost/melanchon/segment_000005.m4s').then(arrayBuffer => {
+                                    sourceBuffer.timestampOffset = -4.004;
+                                    loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                                        getBinaryAsync('http://localhost/tv/segment_000001.m4s').then(arrayBuffer => {
+                                            sourceBuffer.timestampOffset = +6.006;
+                                            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                                                mediaSource.endOfStream();
+                                            },
+                                            reason => {
+                                                console.error(reason);
+                                            });
+                                        }, reason => {
+                                            console.log(reason)
+                                        })
+                                    },
+                                    reason => {
+                                        console.error(reason);
+                                    });
+                                }, reason => {
+                                    console.log(reason)
+                                })
+                            },
+                            reason => {
+                                console.error(reason);
+                            });
+                        }, reason => {
+                            console.log(reason)
+                        })
+                    },
+                    reason => {
+                        console.error(reason);
+                    });
+                }, reason => {
+                    console.log(reason)
+                })
             },
             reason => {
                 console.error(reason);
             });
         }, reason => {
             console.log(reason)
-        });
+        })
     }
 }
 
