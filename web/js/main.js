@@ -143,20 +143,26 @@ var alternateStatusTXT = (function() {
 })();
 
 const ELMT_DURATION = 2;
-let elmt_counter = 0;
+const FPS = 30;
+let frame_counter = 0;
 
 function fillSourceBuffer(sourceBuffer, sourceList, initSegment) {
     return new Promise(function (resolve, reject) {
         let fillSegment = function(sourceBuffer, sourceList) {
             let elmt = sourceList.pop();
-            console.log(elmt_counter);
-            sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
+            // console.log(elmt_counter);
+            console.log(frame_counter);
+
+            // sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
+            sourceBuffer.timestampOffset = frame_counter / FPS - (elmt.index - 1) * ELMT_DURATION;
+
             getBinaryAsync('http://' + baseUrl + elmt.name).then(arrayBuffer => {
                 loadVideo(sourceBuffer, arrayBuffer).then(_ => {
                     if (sourceList.length == 0) {
                         resolve();
                     } else {
-                        elmt_counter += 1;
+                        //elmt_counter += 1;
+                        frame_counter += elmt.nb_frames;
                         fillSegment(sourceBuffer, sourceList);
                     }
                 },
@@ -192,7 +198,7 @@ function fillSourceBuffer(sourceBuffer, sourceList, initSegment) {
 
 function start() {
     var video = document.getElementsByTagName("video")[0];
-    video.loop = true;
+    //video.loop = true;
     alternateStatusTXT(idName);
 
     console.log(baseUrl);
@@ -228,15 +234,15 @@ function start() {
         var mediaSource = this;
         console.log(mediaSource.readyState);
         var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-        var sourceBuffer2 = mediaSource.addSourceBuffer(mimeCodec);
 
         sourceBuffer.mode = 'segments';
         // sourceBuffer.mode = 'sequence';
 
         class Elmt {
-            constructor(video, index) {
+            constructor(video, index, duration) {
                 this.video = video;
                 this.index = index;
+                this.nb_frames = Math.round(duration * FPS);
             }
             get name() {
                 return this.video + '/segment_' + this._pad(this.index, 6) + '.m4s';
@@ -252,75 +258,67 @@ function start() {
 
         let list = new Array();
 
-        list.push(new Elmt('farador', 68));
-        list.push(new Elmt('farador', 69));
-        list.push(new Elmt('farador', 70));
-        list.push(new Elmt('farador', 71));
-        list.push(new Elmt('melanchon', 5));
-        list.push(new Elmt('tv', 1));
-        list.push(new Elmt('melanchon', 6));
-        list.push(new Elmt('farador', 311));
-        list.push(new Elmt('farador', 312));
-        list.push(new Elmt('kiwi', 1));
-        list.push(new Elmt('kiwi', 2));
-        list.push(new Elmt('kiwi', 3));
-        list.push(new Elmt('kiwi', 4));
-        list.push(new Elmt('kiwi', 5));
-        list.push(new Elmt('kiwi', 6));
-        list.push(new Elmt('kiwi', 7));
-        list.push(new Elmt('kiwi', 8));
-        list.push(new Elmt('kiwi', 9));
-        list.push(new Elmt('kiwi', 10));
-        list.push(new Elmt('kiwi', 11));
-        list.push(new Elmt('kiwi', 12));
-        list.push(new Elmt('kiwi', 13));
-        list.push(new Elmt('kiwi', 14));
-        list.push(new Elmt('kiwi', 15));
-        list.push(new Elmt('farador', 332));
-        list.push(new Elmt('farador', 333));
-        list.push(new Elmt('farador', 334));
-        list.push(new Elmt('farador', 335));
-        list.push(new Elmt('farador', 336));
-        list.push(new Elmt('farador', 337));
-        list.push(new Elmt('tv', 1));
+        console.log(1.63333 * 30);
+        console.log(Math.round(1.63333 * 30));
+        for (var i = 0; i < 300; i++) {
+            list.push(new Elmt('kiwi', 16, 1.63333));
+        }
+        list.push(new Elmt('kiwi', 16, 1.63333));
+        list.push(new Elmt('kiwi', 16, 1.63333));
+        list.push(new Elmt('kiwi', 16, 1.63333));
+        list.push(new Elmt('kiwi', 16, 1.63333));
+        list.push(new Elmt('kiwi', 16, 1.63333));
+
+        // list.push(new Elmt('farador', 68));
+        // list.push(new Elmt('farador', 69));
+        // list.push(new Elmt('farador', 70));
+        // list.push(new Elmt('farador', 71));
+        // list.push(new Elmt('melanchon', 5));
+        // list.push(new Elmt('tv', 1));
+        // list.push(new Elmt('melanchon', 6));
+        // list.push(new Elmt('farador', 311));
+        // list.push(new Elmt('farador', 312));
+        // list.push(new Elmt('kiwi', 1));
+        // list.push(new Elmt('kiwi', 2));
+        // list.push(new Elmt('kiwi', 3));
+        // list.push(new Elmt('kiwi', 4));
+        // list.push(new Elmt('kiwi', 5));
+        // list.push(new Elmt('kiwi', 6));
+        // list.push(new Elmt('kiwi', 7));
+        // list.push(new Elmt('kiwi', 8));
+        // list.push(new Elmt('kiwi', 9));
+        // list.push(new Elmt('kiwi', 10));
+        // list.push(new Elmt('kiwi', 11));
+        // list.push(new Elmt('kiwi', 12));
+        // list.push(new Elmt('kiwi', 13));
+        // list.push(new Elmt('kiwi', 14));
+        // list.push(new Elmt('kiwi', 15));
+        // list.push(new Elmt('farador', 332));
+        // list.push(new Elmt('farador', 333));
+        // list.push(new Elmt('farador', 334));
+        // list.push(new Elmt('farador', 335));
+        // list.push(new Elmt('farador', 336));
+        // list.push(new Elmt('farador', 337));
+        // list.push(new Elmt('tv', 1));
 
         list.reverse();
-        console.log(list);
-        mediaSource.duration = (list.length + 1) * ELMT_DURATION + 4;
-        //mediaSource.duration = ELMT_DURATION;
+        console.table(list);
 
-        let list2 = new Array();
-        list2.push(new Elmt('melanchon', 5));
-        list2.push(new Elmt('melanchon', 7));
+        mediaSource.duration = list.length * ELMT_DURATION;
 
-        let promesses = new Array;
-        promesses.push(fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'farador/segment_init.mp4'));
-        promesses.push(fillSourceBuffer(sourceBuffer2, list2, 'http://' + baseUrl + 'farador/segment_init.mp4'));
-        promesses.reverse();
+        fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'farador/segment_init.mp4').then(_ => {
+            console.info("endOfStream");
+            // Some bullshit
+            alternateStatusTXT(idName);
+            document.getElementById(idName).style.display = 'none';
+            video.style.display = 'block';
 
-        promesses.pop().then(_ => {
-            promesses.pop().then(_ => {
-                console.info("endOfStream");
-                // Some bullshit
-                alternateStatusTXT(idName);
-                document.getElementById(idName).style.display = 'none';
-                video.style.display = 'block';
+            console.log(mediaSource.activeSourceBuffers);
 
-                console.log(mediaSource.activeSourceBuffers);
-
-                mediaSource.endOfStream();
-
-            }, reason => {
-                console.error(reason);
-            });
+            mediaSource.endOfStream();
         }, reason => {
             console.error(reason);
         });
-
-        // Promise.all(promesses).then(_ => {
-        // }, reason => {
-        //     console.error(reason);
-        // });
     }
 }
 
