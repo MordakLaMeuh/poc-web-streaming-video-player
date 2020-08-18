@@ -142,8 +142,57 @@ var alternateStatusTXT = (function() {
     };
 })();
 
+const ELMT_DURATION = 2;
+let elmt_counter = 0;
+
+function fillSourceBuffer(sourceBuffer, sourceList, initSegment) {
+    return new Promise(function (resolve, reject) {
+        let fillSegment = function(sourceBuffer, sourceList) {
+            let elmt = sourceList.pop();
+            console.log(elmt_counter);
+            sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
+            getBinaryAsync('http://' + baseUrl + elmt.name).then(arrayBuffer => {
+                loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                    if (sourceList.length == 0) {
+                        resolve();
+                    } else {
+                        elmt_counter += 1;
+                        fillSegment(sourceBuffer, sourceList);
+                    }
+                },
+                reason => {
+                    console.error(reason);
+                    reject(reason);
+                });
+            }, reason => {
+                console.log(reason)
+                reject(reason);
+            })
+        }
+
+        getBinaryAsync(initSegment).then(arrayBuffer => {
+            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
+                if (sourceList.length != 0) {
+                    fillSegment(sourceBuffer, sourceList);
+                } else {
+                    console.info("No segment to be pushed for " + initSegment);
+                    resolve();
+                }
+            },
+            reason => {
+                console.error(reason);
+                reject(reason);
+            });
+        }, reason => {
+            console.log(reason)
+            reject(reason);
+        })
+    });
+}
+
 function start() {
-    // Some bullshit
+    var video = document.getElementsByTagName("video")[0];
+    video.loop = true;
     alternateStatusTXT(idName);
 
     console.log(baseUrl);
@@ -165,20 +214,24 @@ function start() {
 
     var mediaSource = new MediaSource();
     console.log(MediaSource.isTypeSupported(mimeCodec));
-    var video = document.getElementsByTagName("video")[0];
     video.src = URL.createObjectURL(mediaSource);
 
+    video.ontimeupdate = (event) => {
+        console.log('The currentTime attribute has been updated. Again.' + video.currentTime);
+    };
+    video.onwaiting = function() {
+        console.info("Wait! I need to buffer the next frame");
+    };
+
     mediaSource.addEventListener('sourceopen', sourceOpen);
-    function sourceOpen (_) {
+    async function sourceOpen (_) {
         var mediaSource = this;
         console.log(mediaSource.readyState);
         var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+        var sourceBuffer2 = mediaSource.addSourceBuffer(mimeCodec);
 
-        // sourceBuffer.appendWindowEnd = 4.0;
-        // mediaSource.duration = 3.5; // (51200 + 25600) / 12800
-        // sourceBuffer.mode = 'segments';
-
-        const ELMT_DURATION = 2;
+        sourceBuffer.mode = 'segments';
+        // sourceBuffer.mode = 'sequence';
 
         class Elmt {
             constructor(video, index) {
@@ -198,6 +251,7 @@ function start() {
         }
 
         let list = new Array();
+
         list.push(new Elmt('farador', 68));
         list.push(new Elmt('farador', 69));
         list.push(new Elmt('farador', 70));
@@ -232,46 +286,41 @@ function start() {
 
         list.reverse();
         console.log(list);
-        mediaSource.duration = list.length * ELMT_DURATION;
+        mediaSource.duration = (list.length + 1) * ELMT_DURATION + 4;
+        //mediaSource.duration = ELMT_DURATION;
 
-        let elmt_counter = 0;
+        let list2 = new Array();
+        list2.push(new Elmt('melanchon', 5));
+        list2.push(new Elmt('melanchon', 7));
 
-        let make_promise = function() {
-            let elmt = list.pop();
-            sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
-            getBinaryAsync('http://' + baseUrl + elmt.name).then(arrayBuffer => {
-                loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                    if (list.length == 0) {
-                        console.info("endOfStream");
-                        // Some bullshit
-                        alternateStatusTXT(idName);
-                        document.getElementById(idName).style.display = 'none';
-                        document.getElementsByTagName('video')[0].style.display = 'block';
+        let promesses = new Array;
+        promesses.push(fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'farador/segment_init.mp4'));
+        promesses.push(fillSourceBuffer(sourceBuffer2, list2, 'http://' + baseUrl + 'farador/segment_init.mp4'));
+        promesses.reverse();
 
-                        mediaSource.endOfStream();
-                    } else {
-                        elmt_counter += 1;
-                        make_promise();
-                    }
-                },
-                reason => {
-                    console.error(reason);
-                });
+        promesses.pop().then(_ => {
+            promesses.pop().then(_ => {
+                console.info("endOfStream");
+                // Some bullshit
+                alternateStatusTXT(idName);
+                document.getElementById(idName).style.display = 'none';
+                video.style.display = 'block';
+
+                console.log(mediaSource.activeSourceBuffers);
+
+                mediaSource.endOfStream();
+
             }, reason => {
-                console.log(reason)
-            })
-        }
-
-        getBinaryAsync('http://' + baseUrl + 'farador/segment_init.mp4').then(arrayBuffer => {
-            loadVideo(sourceBuffer, arrayBuffer).then(_ => {
-                make_promise();
-            },
-            reason => {
                 console.error(reason);
             });
         }, reason => {
-            console.log(reason)
-        })
+            console.error(reason);
+        });
+
+        // Promise.all(promesses).then(_ => {
+        // }, reason => {
+        //     console.error(reason);
+        // });
     }
 }
 
