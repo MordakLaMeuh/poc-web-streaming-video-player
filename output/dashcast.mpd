@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" availabilityStartTime="2020-08-19T00:43:56.162Z" minBufferTime="PT1.000000S" timeShiftBufferDepth="PT00H00M10S" type="dynamic" profiles="urn:mpeg:dash:profile:full:2011" minimumUpdatePeriod="PT1000S">
+ <ProgramInformation moreInformationURL="http://gpac.sourceforge.net">
+  <Title>dashcast.mpd</Title>
+ </ProgramInformation>
+ <Period start="PT0H0M0.000S" id="P1">
+  <AdaptationSet segmentAlignment="true" bitstreamSwitching="false">
+   <SegmentTemplate timescale="25" duration="25" media="$RepresentationID$_$Number$_gpac.m4s" startNumber="1" initialization="$RepresentationID$_init_gpac.mp4"/>
+   <Representation id="v1" mimeType="video/mp4" codecs="avc1.64001f" width="1280" height="720" frameRate="25" sar="1:1" startWithSAP="1" bandwidth="1000000">
+   </Representation>
+  </AdaptationSet>
+ </Period>
+</MPD>

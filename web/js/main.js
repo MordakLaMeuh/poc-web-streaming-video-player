@@ -1,7 +1,9 @@
 import HLSVideoReader from './HLSVideoReader.js';
 
 const baseUrl = window.location.hostname + '/';
-const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2""';
+// const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2""';
+const VideoMimeCodec = 'video/mp4; codecs="avc1.42E01E""';
+const AudioMimeCodec = 'audio/mp4; codecs="mp4a.40.2""';
 
 function getTxtAsync(url) {
     // Promises require two functions: one for success, one for failure
@@ -45,7 +47,21 @@ function getBinaryAsync(url) {
 function loadVideo(sourceBuffer, arrayBuffer) {
     return new Promise(function (resolve, reject) {
         console.info("data length: " + arrayBuffer.byteLength);
-        try {
+        let removeAllEventListeners = function() {
+            sourceBuffer.removeEventListener('updateend', onupdate);
+            sourceBuffer.removeEventListener('error', onerror);
+            sourceBuffer.removeEventListener('abort', onabort);
+        }
+        let onerror = function(e) {
+            console.error(e);
+            removeAllEventListeners();
+            reject("error evt: " + e);
+        }
+        let onabort = function(a) {
+            console.error(a);
+            removeAllEventListeners();
+            reject("abort evt: " + a);
+        }
             let data = new Uint8Array(arrayBuffer);
             let start_offset = 0;
             let chunk_size = data.length;
@@ -71,22 +87,8 @@ function loadVideo(sourceBuffer, arrayBuffer) {
                     resolve();
                 }
             }
-            let onerror = function(e) {
-                console.error(e);
-                removeAllEventListeners();
-                reject("error evt: " + e);
-            }
-            let onabort = function(a) {
-                console.error(a);
-                removeAllEventListeners();
-                reject("abort evt: " + a);
-            }
-            let removeAllEventListeners = function() {
-                sourceBuffer.removeEventListener('updateend', onupdate);
-                sourceBuffer.removeEventListener('error', onerror);
-                sourceBuffer.removeEventListener('abort', onabort);
-            }
 
+        try {
             sourceBuffer.addEventListener('updateend', onupdate);
             sourceBuffer.addEventListener('error', onerror);
             sourceBuffer.addEventListener('abort', onabort);
@@ -108,7 +110,7 @@ function loadVideo(sourceBuffer, arrayBuffer) {
             })();
         }
         catch (e) {
-            removeAllEventListeners();
+            removeAllEventListeners();;
             reject("Unexpected error: " + e);
         }
     });
@@ -142,27 +144,31 @@ var alternateStatusTXT = (function() {
     };
 })();
 
-const ELMT_DURATION = 2;
+const ELMT_DURATION = 8;
 const FPS = 30;
-let frame_counter = 0;
 
 function fillSourceBuffer(sourceBuffer, sourceList, initSegment) {
     return new Promise(function (resolve, reject) {
+        let elmt_counter = 0;
+        // let frame_counter = 0;
         let fillSegment = function(sourceBuffer, sourceList) {
             let elmt = sourceList.pop();
-            // console.log(elmt_counter);
-            console.log(frame_counter);
+            console.log(elmt_counter);
+            // console.log(frame_counter);
 
-            // sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
-            sourceBuffer.timestampOffset = frame_counter / FPS - (elmt.index - 1) * ELMT_DURATION;
+            sourceBuffer.timestampOffset = (elmt_counter - (elmt.index - 1)) * ELMT_DURATION;
+            console.log("ts offset: " + ((elmt_counter - (elmt.index - 1)) * ELMT_DURATION));
 
+            // sourceBuffer.timestampOffset = frame_counter / FPS - (elmt.index - 1) * ELMT_DURATION;
+            // console.info('offset:' + (frame_counter / FPS - (elmt.index - 1) * ELMT_DURATION));
+            
             getBinaryAsync('http://' + baseUrl + elmt.name).then(arrayBuffer => {
                 loadVideo(sourceBuffer, arrayBuffer).then(_ => {
                     if (sourceList.length == 0) {
                         resolve();
                     } else {
-                        //elmt_counter += 1;
-                        frame_counter += elmt.nb_frames;
+                        elmt_counter += 1;
+                        // frame_counter += elmt.nb_frames;
                         fillSegment(sourceBuffer, sourceList);
                     }
                 },
@@ -198,54 +204,65 @@ function fillSourceBuffer(sourceBuffer, sourceList, initSegment) {
 
 function start() {
     var video = document.getElementsByTagName("video")[0];
-    //video.loop = true;
+    video.loop = true;
     alternateStatusTXT(idName);
 
     console.log(baseUrl);
     console.log(window.location.host);
     var reader = new HLSVideoReader();
-    var promesses = new Array;
-    promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/farador/playlist.m3u8'));
-    promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/melanchon/playlist.m3u8'));
-    Promise.all(promesses).then(values => {
-        console.log(values.length)
-        values.forEach(function(elem) {
-            reader.addPlaylist(elem);
-        });
-        console.log("end of loading playlist");
-    }, reason => {
-        console.log(reason)
-    });
 
+    // var promesses = new Array;
+    // promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/farador/playlist.m3u8'));
+    // promesses.push(getTxtAsync('http://' + baseUrl + 'no_utilized_formats/ts/melanchon/playlist.m3u8'));
+    // Promise.all(promesses).then(values => {
+    //     console.log(values.length)
+    //     values.forEach(function(elem) {
+    //         reader.addPlaylist(elem);
+    //     });
+    //     console.log("end of loading playlist");
+    // }, reason => {
+    //     console.log(reason)
+    // });
 
     var mediaSource = new MediaSource();
-    console.log(MediaSource.isTypeSupported(mimeCodec));
+    console.log(MediaSource.isTypeSupported(VideoMimeCodec));
+    console.log(MediaSource.isTypeSupported(AudioMimeCodec));
     video.src = URL.createObjectURL(mediaSource);
 
     video.ontimeupdate = (event) => {
         console.log('The currentTime attribute has been updated. Again.' + video.currentTime);
     };
     video.onwaiting = function() {
-        console.info("Wait! I need to buffer the next frame");
+        console.info("Wait! I need to buffer the next frame at ", video.currentTime);
+        video.play();
     };
 
     mediaSource.addEventListener('sourceopen', sourceOpen);
     async function sourceOpen (_) {
         var mediaSource = this;
         console.log(mediaSource.readyState);
-        var sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+        var sourceBuffer = mediaSource.addSourceBuffer(VideoMimeCodec);
+        var sourceBuffer2 = mediaSource.addSourceBuffer(AudioMimeCodec);
 
         sourceBuffer.mode = 'segments';
         // sourceBuffer.mode = 'sequence';
 
         class Elmt {
-            constructor(video, index, duration) {
-                this.video = video;
+            constructor(video, index, duration, type) {
+                this.video = video + '/';
                 this.index = index;
                 this.nb_frames = Math.round(duration * FPS);
+                this.type = type;
             }
             get name() {
-                return this.video + '/segment_' + this._pad(this.index, 6) + '.m4s';
+                if (this.type === 'video') {
+                    return this.video + 'video/video_' + this._pad(this.index, 6) + '.dash';
+                } else if (this.type == 'audio') {
+                    return this.video + 'audio/audio_' + this._pad(this.index, 6) + '.dash';
+                } else {
+                    console.error("Unexpected type !");
+                    return;
+                }
             }
             _pad(number, length) {
                 var str = '' + number;
@@ -257,68 +274,110 @@ function start() {
         }
 
         let list = new Array();
+        var list2 = new Array();
+       
+        // console.log(1.63333 * 30);
+        // console.log(Math.round(1.63333 * 30));
+        // for (var i = 0; i < 400; i++) {
+        //     list.push(new Elmt('kiwi', 16, 1.63333));
+        // }
 
-        console.log(1.63333 * 30);
-        console.log(Math.round(1.63333 * 30));
-        for (var i = 0; i < 300; i++) {
-            list.push(new Elmt('kiwi', 16, 1.63333));
+        for (let idx = 1; idx <= 4; idx++) {
+            list.push(new Elmt('kiwi', idx, 8, 'video'));
+            list2.push(new Elmt('kiwi', idx, 8, 'audio'));
         }
-        list.push(new Elmt('kiwi', 16, 1.63333));
-        list.push(new Elmt('kiwi', 16, 1.63333));
-        list.push(new Elmt('kiwi', 16, 1.63333));
-        list.push(new Elmt('kiwi', 16, 1.63333));
-        list.push(new Elmt('kiwi', 16, 1.63333));
 
-        // list.push(new Elmt('farador', 68));
-        // list.push(new Elmt('farador', 69));
-        // list.push(new Elmt('farador', 70));
-        // list.push(new Elmt('farador', 71));
-        // list.push(new Elmt('melanchon', 5));
-        // list.push(new Elmt('tv', 1));
-        // list.push(new Elmt('melanchon', 6));
-        // list.push(new Elmt('farador', 311));
-        // list.push(new Elmt('farador', 312));
-        // list.push(new Elmt('kiwi', 1));
-        // list.push(new Elmt('kiwi', 2));
-        // list.push(new Elmt('kiwi', 3));
-        // list.push(new Elmt('kiwi', 4));
-        // list.push(new Elmt('kiwi', 5));
-        // list.push(new Elmt('kiwi', 6));
-        // list.push(new Elmt('kiwi', 7));
-        // list.push(new Elmt('kiwi', 8));
-        // list.push(new Elmt('kiwi', 9));
-        // list.push(new Elmt('kiwi', 10));
-        // list.push(new Elmt('kiwi', 11));
-        // list.push(new Elmt('kiwi', 12));
-        // list.push(new Elmt('kiwi', 13));
-        // list.push(new Elmt('kiwi', 14));
-        // list.push(new Elmt('kiwi', 15));
-        // list.push(new Elmt('farador', 332));
-        // list.push(new Elmt('farador', 333));
-        // list.push(new Elmt('farador', 334));
-        // list.push(new Elmt('farador', 335));
-        // list.push(new Elmt('farador', 336));
-        // list.push(new Elmt('farador', 337));
-        // list.push(new Elmt('tv', 1));
+        // list.push(new Elmt('farador', 68, 2, 'video'));
+        // list.push(new Elmt('farador', 69, 2, 'video'));
+        // list.push(new Elmt('farador', 70, 2, 'video'));
+        // list.push(new Elmt('farador', 71, 2, 'video'));
+        // list.push(new Elmt('melanchon', 5, 2, 'video'));
+        // list.push(new Elmt('tv', 1, 2, 'video'));
+        // list.push(new Elmt('melanchon', 6, 2, 'video'));
+        // list.push(new Elmt('farador', 311, 2, 'video'));
+        // list.push(new Elmt('farador', 312, 2, 'video'));
+        // list.push(new Elmt('kiwi', 1, 2, 'video'));
+        // list.push(new Elmt('kiwi', 2, 2, 'video'));
+        // list.push(new Elmt('kiwi', 3, 2, 'video'));
+        // list.push(new Elmt('kiwi', 4, 2, 'video'));
+        // list.push(new Elmt('kiwi', 5, 2, 'video'));
+        // list.push(new Elmt('kiwi', 6, 2, 'video'));
+        // list.push(new Elmt('kiwi', 7, 2, 'video'));
+        // list.push(new Elmt('kiwi', 8, 2, 'video'));
+        // list.push(new Elmt('kiwi', 9, 2, 'video'));
+        // list.push(new Elmt('kiwi', 10, 2, 'video'));
+        // list.push(new Elmt('kiwi', 11, 2, 'video'));
+        // list.push(new Elmt('kiwi', 12, 2, 'video'));
+        // list.push(new Elmt('kiwi', 13, 2, 'video'));
+        // list.push(new Elmt('kiwi', 14, 2, 'video'));
+        // list.push(new Elmt('kiwi', 15, 2, 'video'));
+        // list.push(new Elmt('farador', 332, 2, 'video'));
+        // list.push(new Elmt('farador', 333, 2, 'video'));
+        // list.push(new Elmt('farador', 334, 2, 'video'));
+        // list.push(new Elmt('farador', 335, 2, 'video'));
+        // list.push(new Elmt('farador', 336, 2, 'video'));
+        // list.push(new Elmt('farador', 337, 2, 'video'));
+        // list.push(new Elmt('tv', 1, 2, 'video'));
+
+        // list2.push(new Elmt('farador', 68, 2, 'audio'));
+        // list2.push(new Elmt('farador', 69, 2, 'audio'));
+        // list2.push(new Elmt('farador', 70, 2, 'audio'));
+        // list2.push(new Elmt('farador', 71, 2, 'audio'));
+        // list2.push(new Elmt('melanchon', 5, 2, 'audio'));
+        // list2.push(new Elmt('tv', 1, 2, 'audio'));
+        // list2.push(new Elmt('melanchon', 6, 2, 'audio'));
+        // list2.push(new Elmt('farador', 311, 2, 'audio'));
+        // list2.push(new Elmt('farador', 312, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 1, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 2, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 3, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 4, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 5, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 6, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 7, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 8, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 9, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 10, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 11, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 12, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 13, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 14, 2, 'audio'));
+        // list2.push(new Elmt('kiwi', 15, 2, 'audio'));
+        // list2.push(new Elmt('farador', 332, 2, 'audio'));
+        // list2.push(new Elmt('farador', 333, 2, 'audio'));
+        // list2.push(new Elmt('farador', 334, 2, 'audio'));
+        // list2.push(new Elmt('farador', 335, 2, 'audio'));
+        // list2.push(new Elmt('farador', 336, 2, 'audio'));
+        // list2.push(new Elmt('farador', 337, 2, 'audio'));
+        // list2.push(new Elmt('tv', 1, 2, 'audio'));
 
         list.reverse();
         console.table(list);
-
+        list2.reverse();
+        console.table(list2);
+ 
         mediaSource.duration = list.length * ELMT_DURATION;
 
-        fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'farador/segment_init.mp4').then(_ => {
-            console.info("endOfStream");
-            // Some bullshit
-            alternateStatusTXT(idName);
-            document.getElementById(idName).style.display = 'none';
-            video.style.display = 'block';
+        // fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'ffmpeg-dash/farador/segment_0_init.mp4').then(_ => {
+        fillSourceBuffer(sourceBuffer, list, 'http://' + baseUrl + 'kiwi/video/video_init.mp4').then(_ => {
+            // fillSourceBuffer(sourceBuffer2, list2, 'http://' + baseUrl + 'ffmpeg-dash/farador/segment_1_init.mp4').then(_ => {
+            fillSourceBuffer(sourceBuffer2, list2, 'http://' + baseUrl + 'kiwi/audio/audio_init.mp4').then(_ => {
+                console.info("endOfStream");
+                // Some bullshit
+                alternateStatusTXT(idName);
+                document.getElementById(idName).style.display = 'none';
+                video.style.display = 'block';
 
-            console.log(mediaSource.activeSourceBuffers);
+                console.log(mediaSource.activeSourceBuffers);
 
-            mediaSource.endOfStream();
+                mediaSource.endOfStream();
+            }, reason => {
+                console.error(reason);
+            });
         }, reason => {
             console.error(reason);
         });
+            
     }
 }
 
